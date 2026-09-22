@@ -1,0 +1,20 @@
+{
+  "name": "pumpkin-studio",
+  "version": "1.0.0",
+  "description": "Browser-based printable pumpkin designer",
+  "scripts": {
+    "test": "node test.mjs",
+    "build": "node build.mjs",
+    "dev": "node server.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "esbuild": "^0.28.2",
+    "fflate": "^0.8.3",
+    "manifold-3d": "^3.5.3",
+    "three": "^0.186.0"
+  }
+}
