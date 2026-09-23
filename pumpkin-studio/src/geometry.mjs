@@ -2,7 +2,8 @@ export function buildPumpkin(lib, p, contours) {
   const {Manifold:M,Mesh,CrossSection:C}=lib;
   const allocated=[]; const keep=x=>(allocated.push(x),x);
   try {
-    const raw=keep(keep(M.sphere(1,144)).warp(v=>{
+    // Sample the curved surface more densely before warping (not just subdividing flat triangles).
+    const raw=keep(keep(M.sphere(1,512)).warp(v=>{
       const z=Math.max(-1,Math.min(1,v[2])),s=Math.sqrt(1-z*z),a=Math.atan2(v[1],v[0]);
       const groove=Math.pow((1+Math.cos(p.ribs*a+.18*Math.sin(3*a)))/2,3);
       const r=Math.pow(s,.80)*(1-.105*groove)*(1+.018*Math.sin(3*a+.5)*s);
@@ -21,19 +22,62 @@ export function buildPumpkin(lib, p, contours) {
     const lipRing=keep(lipOuter.subtract(lipInner));const lip=keep(keep(lipRing.extrude(5.5)).translate([0,0,cut-4]));
     const shoulder=keep(outer.slice(cut+.8));const bridge=keep(shoulder.subtract(lipInner));const bridge3=keep(keep(bridge.extrude(1.5)).translate([0,0,cut+.2]));
     const topCenter=(.91-rb.min[2]-.055)*scale[2];const stemHeight=p.height*.20;const stemR=p.width*.047;
-    const stem=keep(keep(M.cylinder(stemHeight,stemR,stemR*.6,48)).warp(v=>{const t=v[2]/stemHeight;const a=Math.atan2(v[1],v[0]);const ridges=1+.10*Math.cos(5*a+t);v[0]=v[0]*ridges+p.width*.042*t*t;v[1]=v[1]*ridges+p.width*.018*Math.sin(t*2);v[2]+=topCenter-2;}));
-    lid=keep(M.union([lid,lip,bridge3,stem]));
+    const stemSeat=topCenter+1,pegWidth=Math.min(8,stemR*.85),pegDepth=6,stemClearance=.15;
+    const socketWidth=pegWidth+2*stemClearance;
+    const bossRadius=Math.max(stemR*.86,socketWidth/Math.sqrt(2)+1.5);
+    const boss=keep(keep(M.cylinder(pegDepth+2.3,bossRadius,bossRadius,128)).translate([0,0,stemSeat-pegDepth-2.3]));
+    const socket=keep(keep(M.cube([socketWidth,socketWidth,pegDepth+.8])).translate([-socketWidth/2,-socketWidth/2,stemSeat-pegDepth-.3]));
+    lid=keep(keep(M.union([lid,lip,bridge3,boss])).subtract(socket));
+    // Multiple axial rings preserve the stem's bend and twist in the exported solid.
+    const stemProfile=keep(C.circle(stemR,128));
+    const curvedStem=keep(keep(stemProfile.extrude(stemHeight,64)).warp(v=>{
+      const t=v[2]/stemHeight,a=Math.atan2(v[1],v[0]);
+      // A broad flat tip with a rounded shoulder, instead of a thin, sharp rim.
+      const rounding=Math.min(1.2,stemR*.2);
+      const shoulder=Math.max(0,v[2]-(stemHeight-rounding));
+      const inset=rounding-Math.sqrt(Math.max(0,rounding*rounding-shoulder*shoulder));
+      const radiusScale=(stemR*(1-.28*t)-inset)/stemR;
+      const fade=Math.min(1,Math.max(0,(1-t)/.18));
+      const ridges=1+.10*fade*fade*(3-2*fade)*Math.cos(5*a+t);
+      v[0]=v[0]*radiusScale*ridges+p.width*.042*t*t;
+      v[1]=v[1]*radiusScale*ridges+p.width*.018*Math.sin(t*2);
+      v[2]+=stemSeat;
+    }));
+    const peg=keep(keep(M.cube([pegWidth,pegWidth,pegDepth-.4])).translate([-pegWidth/2,-pegWidth/2,stemSeat-pegDepth+.6]));
+    const tipProfile=keep(C.square(pegWidth-.6,true));
+    const tip=keep(keep(tipProfile.extrude(.61,0,0,pegWidth/(pegWidth-.6))).translate([0,0,stemSeat-pegDepth]));
+    const stem=keep(M.union([curvedStem,peg,tip]));
     if(contours.length){
       const fw=p.width*p.faceScale/100,fh=p.height*.51*p.faceScale/65;
       const polygons=contours.map(loop=>loop.map(([x,y])=>[(x-.5)*fw,(.5-y)*fh+p.height*.435+3+p.faceY]));
       const face=keep(new C(polygons,'EvenOdd'));const cutter=keep(keep(face.extrude(p.width)).rotate([90,0,0]));
       body=keep(body.subtract(cutter));
     }
-    for(const [name,part] of [['body',body],['lid',lid]])if(part.status()!=='NoError'||part.isEmpty())throw Error(`The ${name} could not be generated. Try a simpler face or smaller cutouts.`);
+    const recessDiameter=p.recessDiameter??60,recessDepth=p.recessDepth??2;
+    if(!Number.isFinite(recessDiameter)||recessDiameter<20||recessDiameter>Math.min(100,p.width*.65)+.001||!Number.isFinite(recessDepth)||recessDepth<0||recessDepth>8)throw Error('Choose a recess diameter that fits this pumpkin and a depth from 0 to 8 mm.');
+    let recessFloor=p.wall;
+    if(recessDepth>0){
+      const radius=recessDiameter/2,platformRadius=radius+Math.max(2,p.wall);
+      const footprint=keep(C.circle(platformRadius,256));
+      // Raise and reinforce the pocket as needed so its full diameter fits inside the shell.
+      let fits=false;
+      for(;recessFloor<p.height*.45;recessFloor+=.5){const section=inner.slice(recessFloor),outside=footprint.subtract(section);fits=outside.area()<.001;outside.delete();section.delete();if(fits)break;}
+      if(!fits)throw Error('This light recess is too wide for the pumpkin. Reduce its diameter.');
+      const platform=keep(M.cylinder(recessFloor+recessDepth,platformRadius,platformRadius,256));
+      body=keep(body.add(keep(platform.intersect(outer))));
+      const pocket=keep(keep(M.cylinder(recessDepth+.1,radius,radius,256)).translate([0,0,recessFloor]));
+      body=keep(body.subtract(pocket));
+    }
+    // High-density Boolean seams can leave zero-volume numerical fragments.
+    // Retain meaningful detached artwork so the export guard still catches it.
+    const clean=solid=>{const pieces=solid.decompose();pieces.forEach(keep);const real=pieces.filter(x=>Math.abs(x.volume())>1e-4);return real.length===pieces.length?solid:keep(M.union(real));};
+    body=clean(body);lid=clean(lid);
+    for(const [name,part] of [['body',body],['lid',lid],['stem',stem]])if(part.status()!=='NoError'||part.isEmpty())throw Error(`The ${name} could not be generated. Try a simpler face or smaller cutouts.`);
     const parts=body.decompose();const count=parts.length;parts.forEach(x=>x.delete());
     const lidParts=lid.decompose();const lidCount=lidParts.length;lidParts.forEach(x=>x.delete());
-    const bb=keep(M.union([body,lid])).boundingBox();const ob=opening.bounds();
-    return {body:pack(body.getMesh()),lid:pack(lid.getMesh()),stem:pack(stem.getMesh()),stats:{triangles:body.numTri()+lid.numTri(),volume:(body.volume()+lid.volume())/1000,components:count,lidComponents:lidCount,dimensions:bb.max.map((v,i)=>v-bb.min[i]),opening:Math.min(ob.max[0]-ob.min[0],ob.max[1]-ob.min[1]),cut}};
+    const stemParts=stem.decompose();const stemCount=stemParts.length;stemParts.forEach(x=>x.delete());
+    const bb=keep(M.union([body,lid,stem])).boundingBox();const ob=opening.bounds();
+    return {body:pack(body.getMesh()),lid:pack(lid.getMesh()),stem:pack(stem.getMesh()),stats:{triangles:body.numTri()+lid.numTri()+stem.numTri(),volume:(body.volume()+lid.volume()+stem.volume())/1000,components:count,lidComponents:lidCount,stemComponents:stemCount,dimensions:bb.max.map((v,i)=>v-bb.min[i]),opening:Math.min(ob.max[0]-ob.min[0],ob.max[1]-ob.min[1]),cut,recessDiameter,recessDepth,recessFloor,recessOccludesFace:recessDepth>0&&contours.some(loop=>loop.some(([,y])=>(.5-y)*p.height*.51*p.faceScale/65+p.height*.435+3+p.faceY<recessFloor+recessDepth)),stemSeat,pegWidth,pegDepth,stemClearance,socketWidth}};
   }finally{for(let i=allocated.length-1;i>=0;i--)allocated[i].delete();}
 }
 function pack(mesh){const p=new Float32Array(mesh.numVert*3);for(let i=0;i<mesh.numVert;i++)for(let j=0;j<3;j++)p[i*3+j]=mesh.vertProperties[i*mesh.numProp+j];return {positions:p,indices:new Uint32Array(mesh.triVerts)};}
