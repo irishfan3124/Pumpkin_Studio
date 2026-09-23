@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Browser-based printable pumpkin designer",
   "scripts": {
-    "test": "node test.mjs",
+    "test": "node --test face-fit.test.mjs && node test.mjs",
     "build": "node build.mjs",
     "dev": "node server.mjs"
   },

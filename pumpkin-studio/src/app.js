@@ -3,7 +3,7 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {toCreasedNormals} from 'three/addons/utils/BufferGeometryUtils.js';
 import {zipSync,strToU8} from 'fflate';
 import {binarySTL} from './geometry.mjs';
-import {presets,traceMask} from './faces.js';
+import {presets,traceMask,cutoutBounds,fitUploadedFace} from './faces.js';
 const $=id=>document.getElementById(id);
 const defaults={width:160,height:135,wall:3,ribs:10,clearance:.3,faceScale:65,faceY:0,recessDiameter:60,recessDepth:2};
 const state={...defaults};let contours=presets.classic,uploadImage=null,result=null,revision=0,timer,view='assembled',lit=false;
@@ -29,7 +29,7 @@ function geometry(mesh){const g=new THREE.BufferGeometry();g.setAttribute('posit
 function renderModel(data){if(!group)return;for(const m of [...group.children]){m.geometry.dispose();group.remove(m);}bodyMesh=new THREE.Mesh(geometry(data.body),orange);lidMesh=new THREE.Mesh(geometry(data.lid),orange);stemMesh=new THREE.Mesh(geometry(data.stem),stemMaterial);for(const m of [bodyMesh,lidMesh,stemMesh]){m.castShadow=true;m.receiveShadow=true;group.add(m);}applyView();}
 function applyView(){if(!lidMesh)return;lidMesh.visible=stemMesh.visible=view!=='body';lidMesh.position.z=view==='exploded'?state.height*.20:0;stemMesh.position.z=view==='exploded'?state.height*.32:0;}
 function labels(){const limit=Math.min(100,Math.floor(state.width*.65));$('recessDiameter').max=limit;state.recessDiameter=Math.min(state.recessDiameter,limit);for(const key of Object.keys(defaults)){const el=$(key);el.value=state[key];$(key+'-value').textContent=key==='recessDepth'&&state[key]===0?'Off':state[key]+(key==='ribs'?'':key==='faceScale'?'%':' mm');el.style.setProperty('--progress',((el.value-el.min)/(el.max-el.min)*100)+'%');}}
-function queue(){revision++;exportButtons.forEach(b=>b.disabled=true);status.classList.remove('error');status.textContent='Carving your pumpkin…';clearTimeout(timer);timer=setTimeout(()=>worker.postMessage({id:revision,params:{...state},contours}),220);}
+function queue(){revision++;exportButtons.forEach(b=>b.disabled=true);status.classList.remove('error');status.textContent='Carving your pumpkin…';clearTimeout(timer);timer=setTimeout(()=>worker.postMessage({id:revision,params:{...state},contours:uploadImage?fitUploadedFace(contours,state.width*.65/(state.height*.51)):contours}),220);}
 worker.onmessage=({data})=>{if(data.id!==revision)return;if(data.error){status.textContent=data.error;status.classList.add('error');result=null;return;}result=data;renderModel(data);const s=data.stats;$('dimensions').textContent=s.dimensions.map(n=>Math.round(n)).join(' × ')+' mm';$('wall-stat').textContent=state.wall.toFixed(1)+' mm';status.textContent=`Hollow mesh · ${s.triangles.toLocaleString()} triangles · ${Math.floor(s.opening)} mm opening`;
  const detached=s.components!==1||s.lidComponents!==1||s.stemComponents!==1;exportButtons.forEach(b=>b.disabled=detached);$('mesh-note').textContent=detached?'This design creates detached pieces. Reduce the face size or use a connected stencil before exporting.':`Three closed meshes checked. ${s.recessDepth>0?`LED recess: Ø${s.recessDiameter} × ${s.recessDepth} mm; ${s.recessFloor.toFixed(1)} mm of solid base below it.`:'LED recess off.'} ${s.recessOccludesFace?'The raised base may cover low face details; reduce recess diameter or move the face up. ':''}Square stem peg: ${s.pegWidth.toFixed(1)} mm wide × ${s.pegDepth} mm long, with ${s.stemClearance} mm socket clearance per side. Test the fit before final assembly.`;
 };
@@ -39,12 +39,26 @@ for(const button of document.querySelectorAll('[data-face]'))button.addEventList
 for(const button of document.querySelectorAll('[data-view]'))button.addEventListener('click',()=>{view=button.dataset.view;for(const b of document.querySelectorAll('[data-view]')){b.classList.toggle('active',b===button);b.setAttribute('aria-pressed',b===button);}applyView();});
 $('home').onclick=()=>{if(camera){controls.target.set(0,0,state.height*.53);camera.position.set(state.width*1.37,-state.width*2.44,state.height*1.6);controls.update();}};
 $('glow').onclick=()=>{lit=!lit;$('glow').setAttribute('aria-pressed',lit);$('glow').textContent=lit?'☼ Lights on':'☼ Light it up';if(light){light.intensity=lit?1900:0;orange.emissive.set(lit?0x5b2101:0x000000);orange.emissiveIntensity=lit?.3:0;scene.children.filter(x=>x.isHemisphereLight).forEach(x=>x.intensity=lit?.65:2.1);}};
-function maskImage(){if(!uploadImage)return;const canvas=document.createElement('canvas');canvas.width=canvas.height=256;const ctx=canvas.getContext('2d',{willReadFrequently:true});const ratio=Math.min(248/uploadImage.width,248/uploadImage.height);ctx.drawImage(uploadImage,(256-uploadImage.width*ratio)/2,(256-uploadImage.height*ratio)/2,uploadImage.width*ratio,uploadImage.height*ratio);const data=ctx.getImageData(0,0,256,256);contours=traceMask(data.data,256,256,Number($('threshold').value),$('invert').checked);queue();}
+function maskImage(){
+ if(!uploadImage)return;
+ const threshold=Number($('threshold').value),invert=$('invert').checked;
+ // Detect bounds at higher resolution before tracing so padding doesn't consume detail.
+ const probe=document.createElement('canvas'),scale=Math.min(1,2048/Math.max(uploadImage.width,uploadImage.height));
+ probe.width=Math.max(1,Math.round(uploadImage.width*scale));probe.height=Math.max(1,Math.round(uploadImage.height*scale));
+ const scan=probe.getContext('2d',{willReadFrequently:true});scan.drawImage(uploadImage,0,0,probe.width,probe.height);
+ const bounds=cutoutBounds(scan.getImageData(0,0,probe.width,probe.height).data,probe.width,probe.height,threshold,invert);
+ const sx=bounds.x*uploadImage.width/probe.width,sy=bounds.y*uploadImage.height/probe.height;
+ const sw=bounds.width*uploadImage.width/probe.width,sh=bounds.height*uploadImage.height/probe.height;
+ const canvas=document.createElement('canvas');canvas.width=canvas.height=256;
+ const ctx=canvas.getContext('2d',{willReadFrequently:true}),ratio=Math.min(248/sw,248/sh);
+ ctx.drawImage(uploadImage,sx,sy,sw,sh,(256-sw*ratio)/2,(256-sh*ratio)/2,sw*ratio,sh*ratio);
+ contours=traceMask(ctx.getImageData(0,0,256,256).data,256,256,threshold,invert);queue();
+}
 let uploadToken=0;
 async function loadFile(file){if(!file)return;const token=++uploadToken;try{if(file.size>10*1024*1024)throw Error('Please choose a file under 10 MB.');if(!/\.(svg|png|jpe?g|webp)$/i.test(file.name))throw Error('Choose an SVG, PNG, JPG, or WebP file.');let blob=file;
  if(/\.svg$/i.test(file.name)){const text=await file.text();const doc=new DOMParser().parseFromString(text,'image/svg+xml');if(doc.querySelector('parsererror')||doc.documentElement.localName!=='svg')throw Error('This SVG could not be read. Try exporting it again.');if(doc.querySelector('script,foreignObject,image,use')||/\bon\w+\s*=|(?:href\s*=)|url\s*\(|@import/i.test(text))throw Error('Use a self-contained SVG with paths and shapes; embedded links, images, and scripts are not supported.');blob=new Blob([text],{type:'image/svg+xml'});}
  const url=URL.createObjectURL(blob);const img=new Image();try{img.src=url;await img.decode();if(img.naturalWidth>12000||img.naturalHeight>12000)throw Error('Please resize the image below 12,000 pixels per side.');if(token!==uploadToken)return;uploadImage=img;maskImage();}finally{URL.revokeObjectURL(url);}
- $('image-options').hidden=false;$('upload-name').textContent=file.name+' · processed only on this device';for(const b of document.querySelectorAll('[data-face]')){b.classList.remove('active');b.setAttribute('aria-pressed','false');}
+ $('image-options').hidden=false;$('upload-name').textContent=file.name+' · auto-fitted without blank margins · stays on this device';for(const b of document.querySelectorAll('[data-face]')){b.classList.remove('active');b.setAttribute('aria-pressed','false');}
  }catch(e){revision++;clearTimeout(timer);result=null;exportButtons.forEach(b=>b.disabled=true);$('upload-name').textContent=e.message;status.textContent=e.message;status.classList.add('error');}}
 $('upload').onchange=e=>loadFile(e.target.files[0]);for(const type of ['dragover','dragleave','drop'])$('dropzone').addEventListener(type,e=>{e.preventDefault();$('dropzone').classList.toggle('drag',type==='dragover');if(type==='drop')loadFile(e.dataTransfer.files[0]);});
 for(const id of ['threshold','invert'])$(id).addEventListener('input',()=>{$('threshold-value').textContent=$('threshold').value;try{maskImage();}catch(e){revision++;clearTimeout(timer);exportButtons.forEach(b=>b.disabled=true);status.textContent=e.message;status.classList.add('error');}});

@@ -9,7 +9,7 @@ Install Node.js 22 or later, then run `npm install`, `npm run build`, and `npm r
 ## Features
 
 - High-resolution procedural irregular ribs (512 sphere segments; about 280,000 triangles at default settings), flattened base, curved stem, normal-offset hollow interior. More geometric samples improve STL curvature instead of only smoothing preview normals.
-- SVG, PNG, JPEG, and WebP silhouette import with threshold and inversion controls.
+- SVG, PNG, JPEG, and WebP silhouette import with threshold and inversion controls. Uploads automatically crop blank margins and fit the selected artwork to the face area without changing its proportions. Threshold or inversion changes recalculate the crop; pumpkin dimension changes recalculate the fit. The size slider scales the artwork rather than its original image canvas.
 - Adjustable width, height, rib count, face size/height, wall thickness, and lid clearance.
 - Live assembled, exploded-lid, and body views, orbit controls, and LED illumination preview.
 - LED puck recess with adjustable diameter (20–100 mm, limited to 65% of pumpkin width) and depth (0–8 mm; 0 disables it). Default: 60 mm diameter, 2 mm depth. A reinforced circular platform preserves at least the selected wall thickness beneath the pocket; the platform rises when needed to fit larger pucks inside a small pumpkin.
