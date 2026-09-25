@@ -27,7 +27,6 @@ check('wide short shell',{...defaults,width:240,height:100,wall:2,ribs:7},preset
 check('largest deep recess',{...defaults,width:240,height:100,wall:2,recessDiameter:100,recessDepth:8},presets.blank);
 check('small pumpkin reinforced recess',{...defaults,width:100,height:100,wall:2,recessDiameter:65,recessDepth:8},presets.blank);
 check('recess disabled',{...defaults,recessDepth:0},presets.blank);
-check('full-wrap text stencil',{...defaults,textDesign:true,textWrap:true,textScale:125},presets.classic);
 const w=64,rgba=new Uint8ClampedArray(w*w*4).fill(255);for(let y=12;y<40;y++)for(let x=12;x<24;x++){const i=(y*w+x)*4;rgba[i]=rgba[i+1]=rgba[i+2]=0;}
 const loops=traceMask(rgba,w,w,128,false);assert.equal(loops.length,1);check('raster silhouette',defaults,loops);
 assert.throws(()=>traceMask(new Uint8ClampedArray(w*w*4).fill(255),w,w,128,false),/No cutout/);

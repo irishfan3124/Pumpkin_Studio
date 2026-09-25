@@ -18,11 +18,11 @@ export function buildPumpkin(lib, p, contours) {
     const outer=keep(outer0.trimByPlane([0,0,1],0));const inner=keep(inner0.trimByPlane([0,0,1],p.wall));
     const shell=keep(outer.subtract(inner));const cut=p.height*.805;
     let [lid,body]=shell.splitByPlane([0,0,1],cut);keep(lid);keep(body);
-    // Paired raised arrows at the front give the ribbed lid a repeatable orientation.
-    const bodySurfaceY=keep(outer.slice(cut-2)).bounds().min[1],lidSurfaceY=keep(outer.slice(cut+2)).bounds().min[1];
-    const markDepth=3,bodyMarkY=bodySurfaceY+.5,lidMarkY=lidSurfaceY+.5;
-    const bodyMark=keep(keep(new C([[[-2,cut-4],[2,cut-4],[0,cut-.6]]]).extrude(markDepth)).rotate([90,0,0]).translate([0,bodyMarkY,0]));
-    const lidMark=keep(keep(new C([[[-2,cut+4],[0,cut+.6],[2,cut+4]]]).extrude(markDepth)).rotate([90,0,0]).translate([0,lidMarkY,0]));
+    // A pair of low round nubs at the back marks the lid's intended orientation.
+    const markRadius=1.4,bodyMarkZ=cut-2.2,lidMarkZ=cut+2.2;
+    const bodyMarkY=keep(outer.slice(bodyMarkZ)).bounds().max[1],lidMarkY=keep(outer.slice(lidMarkZ)).bounds().max[1];
+    const bodyMark=keep(keep(M.sphere(markRadius,32)).translate([0,bodyMarkY,bodyMarkZ]));
+    const lidMark=keep(keep(M.sphere(markRadius,32)).translate([0,lidMarkY,lidMarkZ]));
     body=keep(body.add(bodyMark));lid=keep(lid.add(lidMark));
     const opening=keep(inner.slice(cut));const lipOuter=keep(opening.offset(-p.clearance));const lipInner=keep(lipOuter.offset(-Math.min(p.wall,2.5)));
     const lipRing=keep(lipOuter.subtract(lipInner));const lip=keep(keep(lipRing.extrude(5.5)).translate([0,0,cut-4]));
@@ -57,16 +57,9 @@ export function buildPumpkin(lib, p, contours) {
     const stem=keep(M.union([curvedStem,peg,tip]));
     if(contours.length){
       const textScale=p.textDesign?(p.textScale??100)/100:1,fw=p.width*p.faceScale/100*textScale,fh=p.height*.51*p.faceScale/65*textScale;
-      if(p.textDesign&&p.textWrap){
-        const polygons=contours.map(loop=>loop.map(([x,y])=>[(x-.5)*Math.PI*2,(.5-y)*fh+p.height*.435+3+p.faceY]));
-        const face=keep(new C(polygons,'EvenOdd'));
-        const cutter=keep(face.extrude(p.width*.5).warp(v=>{const angle=v[0],z=v[1],radius=p.width*.15+v[2];v[0]=radius*Math.cos(angle);v[1]=radius*Math.sin(angle);v[2]=z;}));
-        body=keep(body.subtract(cutter));
-      }else{
-        const polygons=contours.map(loop=>loop.map(([x,y])=>[(x-.5)*fw,(.5-y)*fh+p.height*.435+3+p.faceY]));
-        const face=keep(new C(polygons,'EvenOdd'));const cutter=keep(keep(face.extrude(p.width)).rotate([90,0,0]));
-        body=keep(body.subtract(cutter));
-      }
+      const polygons=contours.map(loop=>loop.map(([x,y])=>[(x-.5)*fw,(.5-y)*fh+p.height*.435+3+p.faceY]));
+      const face=keep(new C(polygons,'EvenOdd'));const cutter=keep(keep(face.extrude(p.width)).rotate([90,0,0]));
+      body=keep(body.subtract(cutter));
     }
     const recessDiameter=p.recessDiameter??60,recessDepth=p.recessDepth??2;
     if(!Number.isFinite(recessDiameter)||recessDiameter<20||recessDiameter>Math.min(100,p.width*.65)+.001||!Number.isFinite(recessDepth)||recessDepth<0||recessDepth>8)throw Error('Choose a recess diameter that fits this pumpkin and a depth from 0 to 8 mm.');
