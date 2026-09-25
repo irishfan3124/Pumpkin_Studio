@@ -3,7 +3,7 @@ import init from 'manifold-3d';
 import {buildPumpkin,binarySTL} from './src/geometry.mjs';
 import {presets,traceMask} from './src/faces.js';
 const lib=await init();lib.setup();
-const defaults={width:160,height:135,wall:3,ribs:10,clearance:.3,faceScale:65,faceY:0,recessDiameter:60,recessDepth:2};
+const defaults={width:160,height:135,wall:3,ribs:10,clearance:.4,faceScale:65,faceY:0,recessDiameter:60,recessDepth:2};
 function manifold(mesh){return new lib.Manifold(new lib.Mesh({numProp:3,vertProperties:mesh.positions,triVerts:mesh.indices}));}
 function check(name,params,face){const r=buildPumpkin(lib,params,face);assert.equal(r.stats.components,1,name+' body connected');assert.equal(r.stats.lidComponents,1,name+' lid connected');assert.equal(r.stats.stemComponents,1,name+' stem connected');assert.ok(r.stats.triangles>220000,name+' high resolution');assert.ok(Math.abs(r.stats.dimensions[0]-params.width)<.01);for(const part of ['body','lid','stem']){const m=manifold(r[part]);assert.equal(m.status(),'NoError');assert.ok(m.volume()>0);const stl=binarySTL(r[part]);assert.equal(stl.length,84+r[part].indices.length/3*50);const edges=new Map();const idx=r[part].indices;for(let i=0;i<idx.length;i+=3)for(let k=0;k<3;k++){const a=idx[i+k],b=idx[i+(k+1)%3],key=a<b?a+','+b:b+','+a;edges.set(key,(edges.get(key)||0)+1);}assert.ok([...edges.values()].every(n=>n===2),name+' watertight edges');m.delete();}
 const b=manifold(r.body),l=manifold(r.lid),stem=manifold(r.stem),overlap=b.intersect(l);assert.ok(overlap.volume()<.01,name+' lid clears body');overlap.delete();

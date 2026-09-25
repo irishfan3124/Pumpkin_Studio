@@ -5,7 +5,7 @@ import {zipSync,strToU8} from 'fflate';
 import {binarySTL} from './geometry.mjs';
 import {presets,presetInfo,traceMask,cutoutBounds,rotateUploadedFace} from './faces.js';
 const $=id=>document.getElementById(id);
-const defaults={width:160,height:135,wall:3,ribs:10,clearance:.3,stemScale:125,stemClearance:.1,faceScale:65,faceY:0,imageRotation:0,textScale:100,recessDiameter:60,recessDepth:2};
+const defaults={width:160,height:135,wall:3,ribs:10,clearance:.4,stemScale:125,stemClearance:.1,faceScale:65,faceY:0,imageRotation:0,textScale:100,recessDiameter:60,recessDepth:2};
 const state={...defaults};let contours=presets.classic,uploadImage=null,textDesign=false,result=null,revision=0,timer,view='assembled',lit=false;
 const worker=new Worker(new URL('./worker.js?v='+__BUILD_VERSION__,import.meta.url),{type:'module'});
 const status=$('status');const exportButtons=[$('export'),$('export-body'),$('export-lid'),$('export-stem')];
