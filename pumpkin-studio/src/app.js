@@ -7,7 +7,7 @@ import {presets,presetInfo,traceMask,cutoutBounds,rotateUploadedFace} from './fa
 const $=id=>document.getElementById(id);
 const defaults={width:160,height:135,wall:3,ribs:10,clearance:.3,stemScale:125,stemClearance:.1,faceScale:65,faceY:0,imageRotation:0,recessDiameter:60,recessDepth:2};
 const state={...defaults};let contours=presets.classic,uploadImage=null,result=null,revision=0,timer,view='assembled',lit=false;
-const worker=new Worker(new URL('./worker.js',import.meta.url),{type:'module'});
+const worker=new Worker(new URL('./worker.js?v='+__BUILD_VERSION__,import.meta.url),{type:'module'});
 const status=$('status');const exportButtons=[$('export'),$('export-body'),$('export-lid'),$('export-stem')];
 let scene,camera,renderer,controls,bodyMesh,lidMesh,stemMesh,light,group;
 for(const [id,face] of Object.entries(presetInfo)){const button=document.createElement('button');button.className='preset';button.dataset.face=id;button.setAttribute('aria-pressed',id==='classic'?'true':'false');if(id==='classic')button.classList.add('active');const icon=document.createElement('span');icon.textContent=face.icon;const label=document.createElement('small');label.textContent=face.label;button.append(icon,label);$('face-library').append(button);}
