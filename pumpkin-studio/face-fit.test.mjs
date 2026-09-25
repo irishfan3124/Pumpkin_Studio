@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {cutoutBounds,fitUploadedFace,rotateUploadedFace,traceMask} from './src/faces.js';
+import {cutoutBounds,fitUploadedFace,rotateUploadedFace,traceMask,bridgeEnclosedRegions} from './src/faces.js';
 
 function raster({padding=0,transparent=false,invert=false}={}){
  // The browser traces on a square canvas so X and Y use the same pixel scale.
@@ -54,4 +54,19 @@ test('rotated artwork remains centered, proportionate, and inside the face area'
 test('white or fully transparent images produce a useful error',()=>{
  assert.throws(()=>cutoutBounds(new Uint8ClampedArray(16).fill(255),2,2,128,false),/No cutout/);
  assert.throws(()=>cutoutBounds(new Uint8ClampedArray(16),2,2,128,true),/No cutout/);
+});
+test('four enclosed image regions get printable stencil connections',()=>{
+ const w=128,h=128;
+ for(const invert of [false,true]){
+  const data=new Uint8ClampedArray(w*h*4);
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+   const inside=x>=10&&x<118&&y>=10&&y<118;
+   const island=(x>=30&&x<46||x>=78&&x<94)&&(y>=30&&y<46||y>=78&&y<94);
+   const selected=inside&&!island,value=selected?(invert?255:0):(invert?0:255),i=(y*w+x)*4;
+   data[i]=data[i+1]=data[i+2]=value;data[i+3]=255;
+  }
+  assert.equal(traceMask(data,w,h,128,invert).length,5);
+  assert.equal(bridgeEnclosedRegions(data,w,h,128,invert,4),4);
+  assert.equal(traceMask(data,w,h,128,invert).length,1);
+ }
 });

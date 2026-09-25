@@ -39,6 +39,41 @@ export function cutoutBounds(data,w,h,threshold,invert){
  if(right<left)throw Error('No cutout was found. Use a dark design on a white or transparent background, or invert the selection.');
  return {x:left,y:top,width:right-left+1,height:bottom-top+1};
 }
+// Turn enclosed non-cutout islands into connected stencil shapes by opening
+// the shortest horizontal or vertical passage through the selected artwork.
+export function bridgeEnclosedRegions(data,w,h,threshold,invert,halfWidth){
+ const size=w*h,cut=new Uint8Array(size),outside=new Uint8Array(size),seen=new Uint8Array(size),queue=new Int32Array(size);
+ for(let i=0;i<size;i++)cut[i]=selectedPixel(data,i*4,threshold,invert)?1:0;
+ let head=0,tail=0;
+ const seed=i=>{if(!cut[i]&&!outside[i]){outside[i]=1;queue[tail++]=i;}};
+ for(let x=0;x<w;x++){seed(x);seed((h-1)*w+x);}
+ for(let y=1;y<h-1;y++){seed(y*w);seed(y*w+w-1);}
+ while(head<tail){const i=queue[head++],x=i%w,y=(i/w)|0;if(x>0)seed(i-1);if(x+1<w)seed(i+1);if(y>0)seed(i-w);if(y+1<h)seed(i+w);}
+ let bridges=0;
+ for(let start=0;start<size;start++){
+  if(cut[start]||outside[start]||seen[start])continue;
+  head=0;tail=0;queue[tail++]=start;seen[start]=1;
+  while(head<tail){const i=queue[head++],x=i%w,y=(i/w)|0;for(const n of [x>0?i-1:-1,x+1<w?i+1:-1,y>0?i-w:-1,y+1<h?i+w:-1])if(n>=0&&!cut[n]&&!outside[n]&&!seen[n]){seen[n]=1;queue[tail++]=n;}}
+  let best=null;
+  for(let k=0;k<tail;k++){
+   const i=queue[k],x=i%w,y=(i/w)|0;
+   for(const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1]]){
+    const neighborX=x+dx,neighborY=y+dy;
+    if(neighborX<0||neighborX>=w||neighborY<0||neighborY>=h||!cut[neighborY*w+neighborX])continue;
+    let nx=neighborX,ny=neighborY,steps=1;
+    while(nx>=0&&nx<w&&ny>=0&&ny<h&&!outside[ny*w+nx]){nx+=dx;ny+=dy;steps++;}
+    if(nx>=0&&nx<w&&ny>=0&&ny<h&&(!best||steps<best.steps))best={x,y,dx,dy,steps};
+   }
+  }
+  if(!best)continue;
+  for(let step=0;step<=best.steps;step++)for(let offset=-halfWidth;offset<=halfWidth;offset++){
+   const x=best.x+best.dx*step+(best.dy?offset:0),y=best.y+best.dy*step+(best.dx?offset:0);
+   if(x>=0&&x<w&&y>=0&&y<h)data[(y*w+x)*4+3]=0;
+  }
+  bridges++;
+ }
+ return bridges;
+}
 // Fit the artwork to the physical face rectangle with one uniform scale.
 // All contours share the same bounds, preserving holes and feature spacing.
 export function fitUploadedFace(loops,aspect){
