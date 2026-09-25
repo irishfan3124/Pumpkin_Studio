@@ -57,13 +57,28 @@ function maskImage(){
  ctx.drawImage(uploadImage,sx,sy,sw,sh,(256-sw*ratio)/2,(256-sh*ratio)/2,sw*ratio,sh*ratio);
  contours=traceMask(ctx.getImageData(0,0,256,256).data,256,256,threshold,invert);queue();
 }
+function bridgeTextCounters(image,width,height,bridgeHalf){
+ const {data}=image,size=width*height,ink=new Uint8Array(size),outside=new Uint8Array(size),seen=new Uint8Array(size),queue=new Int32Array(size);
+ for(let i=0;i<size;i++){const p=i*4;ink[i]=data[p+3]>12&&(.2126*data[p]+.7152*data[p+1]+.0722*data[p+2])*data[p+3]/255<128?1:0;}
+ let head=0,tail=0;const seed=i=>{if(!ink[i]&&!outside[i]){outside[i]=1;queue[tail++]=i;}};
+ for(let x=0;x<width;x++){seed(x);seed((height-1)*width+x);}for(let y=1;y<height-1;y++){seed(y*width);seed(y*width+width-1);}
+ while(head<tail){const i=queue[head++],x=i%width,y=(i/width)|0;if(x>0)seed(i-1);if(x+1<width)seed(i+1);if(y>0)seed(i-width);if(y+1<height)seed(i+width);}
+ for(let start=0;start<size;start++){if(ink[start]||outside[start]||seen[start])continue;head=0;tail=0;queue[tail++]=start;seen[start]=1;let bestY=-1,bestCount=0,rowMin=0,rowMax=0;const rows=new Map();
+  while(head<tail){const i=queue[head++],x=i%width,y=(i/width)|0;let row=rows.get(y);if(!row){row={count:0,min:width,max:-1};rows.set(y,row);}row.count++;row.min=Math.min(row.min,x);row.max=Math.max(row.max,x);for(const n of [x>0?i-1:-1,x+1<width?i+1:-1,y>0?i-width:-1,y+1<height?i+width:-1])if(n>=0&&!ink[n]&&!outside[n]&&!seen[n]){seen[n]=1;queue[tail++]=n;}}
+  for(const [y,row] of rows)if(row.count>bestCount){bestCount=row.count;bestY=y;rowMin=row.min;rowMax=row.max;}
+  if(bestY<0)continue;let left=rowMin-1,right=rowMax+1;while(left>=0&&!outside[bestY*width+left])left--;while(right<width&&!outside[bestY*width+right])right++;
+  const useLeft=left>=0&&(right>=width||rowMin-left<=right-rowMax),from=useLeft?left+1:rowMax,to=useLeft?rowMin:right-1;if(from>to||from<0||to>=width)continue;
+  for(let y=Math.max(0,bestY-bridgeHalf);y<=Math.min(height-1,bestY+bridgeHalf);y++)for(let x=from;x<=to;x++)data[(y*width+x)*4+3]=0;
+ }
+ return image;
+}
 function makeTextContours(value){
  const canvas=document.createElement('canvas');canvas.width=canvas.height=512;const ctx=canvas.getContext('2d',{willReadFrequently:true});
  const wrap=(text,maxWidth)=>{const lines=[];for(const paragraph of text.split('\n')){let line='';for(const word of paragraph.trim().split(/\s+/).filter(Boolean)){const candidate=line?line+' '+word:word;if(ctx.measureText(candidate).width<=maxWidth){line=candidate;continue;}if(line)lines.push(line);line='';for(const char of Array.from(word)){if(line&&ctx.measureText(line+char).width>maxWidth){lines.push(line);line=char;}else line+=char;}}lines.push(line);}return lines;};
  let size=112,lines;do{ctx.font=`900 ${size}px Arial, sans-serif`;lines=wrap(value.toLocaleUpperCase(),456);if(lines.length<=3)break;size-=4;}while(size>=28);
  if(lines.length>3)throw Error('Use a shorter message or split it across fewer lines.');
  ctx.fillStyle='#000';ctx.textAlign='center';ctx.textBaseline='middle';const lineHeight=size*1.12,start=256-(lines.length-1)*lineHeight/2;lines.forEach((line,i)=>ctx.fillText(line,256,start+i*lineHeight));
- const source=ctx.getImageData(0,0,512,512).data,bounds=cutoutBounds(source,512,512,128,false),fit=document.createElement('canvas');fit.width=fit.height=256;
+ const stencil=bridgeTextCounters(ctx.getImageData(0,0,512,512),512,512,Math.max(7,Math.round(size*.09)));ctx.putImageData(stencil,0,0);const source=stencil.data,bounds=cutoutBounds(source,512,512,128,false),fit=document.createElement('canvas');fit.width=fit.height=256;
  const fitCtx=fit.getContext('2d',{willReadFrequently:true}),scale=Math.min(248/bounds.width,248/bounds.height);fitCtx.drawImage(canvas,bounds.x,bounds.y,bounds.width,bounds.height,(256-bounds.width*scale)/2,(256-bounds.height*scale)/2,bounds.width*scale,bounds.height*scale);
  return traceMask(fitCtx.getImageData(0,0,256,256).data,256,256,128,false);
 }
