@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {cutoutBounds,fitUploadedFace,traceMask} from './src/faces.js';
+import {cutoutBounds,fitUploadedFace,rotateUploadedFace,traceMask} from './src/faces.js';
 
 function raster({padding=0,transparent=false,invert=false}={}){
  // The browser traces on a square canvas so X and Y use the same pixel scale.
@@ -39,6 +39,17 @@ test('holes and separate features share one scale and center',()=>{
  const fitted=fitUploadedFace([outer,hole],1);
  assert.equal(fitted.length,2);assert.deepEqual(extent([fitted[1]]),[.5,.5]);
  assert.deepEqual(fitted[1][0],[.25,.25]);
+});
+test('rotated artwork remains centered, proportionate, and inside the face area',()=>{
+ const loops=[[[0,0],[4,0],[4,1],[0,1]],[[1,.25],[2,.25],[2,.75],[1,.75]]];
+ const a=rotateUploadedFace(loops,1.8,90),b=rotateUploadedFace(loops,1.8,-45);
+ for(const result of [a,b]){
+  const points=result.flat();
+  assert.ok(points.every(([x,y])=>x>=-1e-12&&x<=1+1e-12&&y>=-1e-12&&y<=1+1e-12));
+  const center=[points.reduce((n,[x])=>n+x,0)/points.length,points.reduce((n,[,y])=>n+y,0)/points.length];
+  assert.ok(Math.abs(center[0]-.5)<.08&&Math.abs(center[1]-.5)<.08);
+ }
+ assert.notDeepEqual(a,rotateUploadedFace(loops,1.8,0));
 });
 test('white or fully transparent images produce a useful error',()=>{
  assert.throws(()=>cutoutBounds(new Uint8ClampedArray(16).fill(255),2,2,128,false),/No cutout/);

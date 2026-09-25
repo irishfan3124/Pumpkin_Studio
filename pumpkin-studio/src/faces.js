@@ -28,6 +28,21 @@ export function fitUploadedFace(loops,aspect){
  const cx=(left+right)/2,cy=(top+bottom)/2;
  return loops.map(loop=>loop.map(([x,y])=>[.5+(x-cx)/size,.5+(y-cy)*aspect/size]));
 }
+// Rotate in the pumpkin face's physical coordinate system, then refit it.
+// This avoids clipping a wide image when it is turned upright (or vice versa).
+export function rotateUploadedFace(loops,aspect,degrees=0){
+ const fitted=fitUploadedFace(loops,aspect);
+ if(!degrees)return fitted;
+ const radians=degrees*Math.PI/180,c=Math.cos(radians),s=Math.sin(radians);
+ const physical=fitted.map(loop=>loop.map(([x,y])=>{
+   const px=(x-.5)*aspect,py=(y-.5);
+   return [c*px-s*py,s*px+c*py];
+ }));
+ let left=Infinity,right=-Infinity,top=Infinity,bottom=-Infinity;
+ for(const loop of physical)for(const [x,y] of loop){left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y);}
+ const width=right-left,height=bottom-top,scale=Math.min(aspect/width,1/height);
+ return physical.map(loop=>loop.map(([x,y])=>[.5+(x-(left+right)/2)*scale/aspect,.5+(y-(top+bottom)/2)*scale]));
+}
 // Trace boundaries of a binary raster, retaining holes with an even-odd fill.
 export function traceMask(data,w,h,threshold,invert){
  const on=(x,y)=>x>=0&&y>=0&&x<w&&y<h&&selectedPixel(data,(y*w+x)*4,threshold,invert);
