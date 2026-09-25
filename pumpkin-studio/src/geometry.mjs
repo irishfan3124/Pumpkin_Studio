@@ -21,8 +21,8 @@ export function buildPumpkin(lib, p, contours) {
     const opening=keep(inner.slice(cut));const lipOuter=keep(opening.offset(-p.clearance));const lipInner=keep(lipOuter.offset(-Math.min(p.wall,2.5)));
     const lipRing=keep(lipOuter.subtract(lipInner));const lip=keep(keep(lipRing.extrude(5.5)).translate([0,0,cut-4]));
     const shoulder=keep(outer.slice(cut+.8));const bridge=keep(shoulder.subtract(lipInner));const bridge3=keep(keep(bridge.extrude(1.5)).translate([0,0,cut+.2]));
-    const stemScale=p.stemScale??100,stemClearance=p.stemClearance??.1;
-    if(!Number.isFinite(stemScale)||stemScale<70||stemScale>140||!Number.isFinite(stemClearance)||stemClearance<.05||stemClearance>.5)throw Error('Choose a stem size from 70% to 140% and a stem clearance from 0.05 to 0.5 mm per side.');
+    const stemScale=p.stemScale??125,stemClearance=p.stemClearance??.1;
+    if(!Number.isFinite(stemScale)||stemScale<70||stemScale>200||!Number.isFinite(stemClearance)||stemClearance<.05||stemClearance>.5)throw Error('Choose a stem size from 70% to 200% and a stem clearance from 0.05 to 0.5 mm per side.');
     const topCenter=(.91-rb.min[2]-.055)*scale[2];const stemHeight=p.height*.20*stemScale/100;const stemR=p.width*.047*stemScale/100;
     const stemSeat=topCenter+1,pegWidth=Math.min(8,stemR*.85),pegDepth=6;
     const socketWidth=pegWidth+2*stemClearance;

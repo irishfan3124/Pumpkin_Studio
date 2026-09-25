@@ -3,13 +3,14 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {toCreasedNormals} from 'three/addons/utils/BufferGeometryUtils.js';
 import {zipSync,strToU8} from 'fflate';
 import {binarySTL} from './geometry.mjs';
-import {presets,traceMask,cutoutBounds,rotateUploadedFace} from './faces.js';
+import {presets,presetInfo,traceMask,cutoutBounds,rotateUploadedFace} from './faces.js';
 const $=id=>document.getElementById(id);
-const defaults={width:160,height:135,wall:3,ribs:10,clearance:.3,stemScale:100,stemClearance:.1,faceScale:65,faceY:0,imageRotation:0,recessDiameter:60,recessDepth:2};
+const defaults={width:160,height:135,wall:3,ribs:10,clearance:.3,stemScale:125,stemClearance:.1,faceScale:65,faceY:0,imageRotation:0,recessDiameter:60,recessDepth:2};
 const state={...defaults};let contours=presets.classic,uploadImage=null,result=null,revision=0,timer,view='assembled',lit=false;
 const worker=new Worker(new URL('./worker.js',import.meta.url),{type:'module'});
 const status=$('status');const exportButtons=[$('export'),$('export-body'),$('export-lid'),$('export-stem')];
 let scene,camera,renderer,controls,bodyMesh,lidMesh,stemMesh,light,group;
+for(const [id,face] of Object.entries(presetInfo)){const button=document.createElement('button');button.className='preset';button.dataset.face=id;button.setAttribute('aria-pressed',id==='classic'?'true':'false');if(id==='classic')button.classList.add('active');const icon=document.createElement('span');icon.textContent=face.icon;const label=document.createElement('small');label.textContent=face.label;button.append(icon,label);$('face-library').append(button);}
 const orange=new THREE.MeshStandardMaterial({color:0xd66a22,roughness:.74,metalness:0});
 const stemMaterial=new THREE.MeshStandardMaterial({color:0x5c6540,roughness:1});
 try{
@@ -36,6 +37,8 @@ worker.onmessage=({data})=>{if(data.id!==revision)return;if(data.error){status.t
 worker.onerror=()=>{result=null;exportButtons.forEach(b=>b.disabled=true);status.classList.add('error');status.textContent='The geometry engine could not load. Reload the page to try again.';};
 for(const key of Object.keys(defaults))$(key).addEventListener('input',()=>{state[key]=Number($(key).value);labels();queue();});
 for(const button of document.querySelectorAll('[data-face]'))button.addEventListener('click',()=>{uploadImage=null;contours=presets[button.dataset.face];$('image-options').hidden=true;$('imageRotation').disabled=true;$('rotation-hint').hidden=false;$('upload-name').textContent='Dark areas become cutouts. Simple silhouettes work best.';$('upload').value='';for(const b of document.querySelectorAll('[data-face]')){b.classList.toggle('active',b===button);b.setAttribute('aria-pressed',b===button);}queue();});
+const filterFaces=(query='')=>{let visible=0;for(const b of document.querySelectorAll('[data-face]')){b.hidden=!presetInfo[b.dataset.face].label.toLowerCase().includes(query.toLowerCase());if(!b.hidden)visible++;}$('no-faces').hidden=visible>0;};
+$('face-search').addEventListener('input',()=>filterFaces($('face-search').value.trim()));
 for(const button of document.querySelectorAll('[data-view]'))button.addEventListener('click',()=>{view=button.dataset.view;for(const b of document.querySelectorAll('[data-view]')){b.classList.toggle('active',b===button);b.setAttribute('aria-pressed',b===button);}applyView();});
 $('home').onclick=()=>{if(camera){controls.target.set(0,0,state.height*.53);camera.position.set(state.width*1.37,-state.width*2.44,state.height*1.6);controls.update();}};
 $('glow').onclick=()=>{lit=!lit;$('glow').setAttribute('aria-pressed',lit);$('glow').textContent=lit?'☼ Lights on':'☼ Light it up';if(light){light.intensity=lit?1900:0;orange.emissive.set(lit?0x5b2101:0x000000);orange.emissiveIntensity=lit?.3:0;scene.children.filter(x=>x.isHemisphereLight).forEach(x=>x.intensity=lit?.65:2.1);}};
