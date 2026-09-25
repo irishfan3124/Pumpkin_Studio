@@ -18,6 +18,12 @@ export function buildPumpkin(lib, p, contours) {
     const outer=keep(outer0.trimByPlane([0,0,1],0));const inner=keep(inner0.trimByPlane([0,0,1],p.wall));
     const shell=keep(outer.subtract(inner));const cut=p.height*.805;
     let [lid,body]=shell.splitByPlane([0,0,1],cut);keep(lid);keep(body);
+    // Paired raised arrows at the front give the ribbed lid a repeatable orientation.
+    const bodySurfaceY=keep(outer.slice(cut-2)).bounds().min[1],lidSurfaceY=keep(outer.slice(cut+2)).bounds().min[1];
+    const markDepth=3,bodyMarkY=bodySurfaceY+.5,lidMarkY=lidSurfaceY+.5;
+    const bodyMark=keep(keep(new C([[[-2,cut-4],[2,cut-4],[0,cut-.6]]]).extrude(markDepth)).rotate([90,0,0]).translate([0,bodyMarkY,0]));
+    const lidMark=keep(keep(new C([[[-2,cut+4],[0,cut+.6],[2,cut+4]]]).extrude(markDepth)).rotate([90,0,0]).translate([0,lidMarkY,0]));
+    body=keep(body.add(bodyMark));lid=keep(lid.add(lidMark));
     const opening=keep(inner.slice(cut));const lipOuter=keep(opening.offset(-p.clearance));const lipInner=keep(lipOuter.offset(-Math.min(p.wall,2.5)));
     const lipRing=keep(lipOuter.subtract(lipInner));const lip=keep(keep(lipRing.extrude(5.5)).translate([0,0,cut-4]));
     const shoulder=keep(outer.slice(cut+.8));const bridge=keep(shoulder.subtract(lipInner));const bridge3=keep(keep(bridge.extrude(1.5)).translate([0,0,cut+.2]));
@@ -50,10 +56,17 @@ export function buildPumpkin(lib, p, contours) {
     const tip=keep(keep(tipProfile.extrude(.61,0,0,pegWidth/(pegWidth-.6))).translate([0,0,stemSeat-pegDepth]));
     const stem=keep(M.union([curvedStem,peg,tip]));
     if(contours.length){
-      const fw=p.width*p.faceScale/100,fh=p.height*.51*p.faceScale/65;
-      const polygons=contours.map(loop=>loop.map(([x,y])=>[(x-.5)*fw,(.5-y)*fh+p.height*.435+3+p.faceY]));
-      const face=keep(new C(polygons,'EvenOdd'));const cutter=keep(keep(face.extrude(p.width)).rotate([90,0,0]));
-      body=keep(body.subtract(cutter));
+      const textScale=p.textDesign?(p.textScale??100)/100:1,fw=p.width*p.faceScale/100*textScale,fh=p.height*.51*p.faceScale/65*textScale;
+      if(p.textDesign&&p.textWrap){
+        const polygons=contours.map(loop=>loop.map(([x,y])=>[(x-.5)*Math.PI*2,(.5-y)*fh+p.height*.435+3+p.faceY]));
+        const face=keep(new C(polygons,'EvenOdd'));
+        const cutter=keep(face.extrude(p.width*.5).warp(v=>{const angle=v[0],z=v[1],radius=p.width*.15+v[2];v[0]=radius*Math.cos(angle);v[1]=radius*Math.sin(angle);v[2]=z;}));
+        body=keep(body.subtract(cutter));
+      }else{
+        const polygons=contours.map(loop=>loop.map(([x,y])=>[(x-.5)*fw,(.5-y)*fh+p.height*.435+3+p.faceY]));
+        const face=keep(new C(polygons,'EvenOdd'));const cutter=keep(keep(face.extrude(p.width)).rotate([90,0,0]));
+        body=keep(body.subtract(cutter));
+      }
     }
     const recessDiameter=p.recessDiameter??60,recessDepth=p.recessDepth??2;
     if(!Number.isFinite(recessDiameter)||recessDiameter<20||recessDiameter>Math.min(100,p.width*.65)+.001||!Number.isFinite(recessDepth)||recessDepth<0||recessDepth>8)throw Error('Choose a recess diameter that fits this pumpkin and a depth from 0 to 8 mm.');
@@ -79,7 +92,7 @@ export function buildPumpkin(lib, p, contours) {
     const lidParts=lid.decompose();const lidCount=lidParts.length;lidParts.forEach(x=>x.delete());
     const stemParts=stem.decompose();const stemCount=stemParts.length;stemParts.forEach(x=>x.delete());
     const bb=keep(M.union([body,lid,stem])).boundingBox();const ob=opening.bounds();
-    return {body:pack(body.getMesh()),lid:pack(lid.getMesh()),stem:pack(stem.getMesh()),stats:{triangles:body.numTri()+lid.numTri()+stem.numTri(),volume:(body.volume()+lid.volume()+stem.volume())/1000,components:count,lidComponents:lidCount,stemComponents:stemCount,dimensions:bb.max.map((v,i)=>v-bb.min[i]),opening:Math.min(ob.max[0]-ob.min[0],ob.max[1]-ob.min[1]),cut,recessDiameter,recessDepth,recessFloor,recessOccludesFace:recessDepth>0&&contours.some(loop=>loop.some(([,y])=>(.5-y)*p.height*.51*p.faceScale/65+p.height*.435+3+p.faceY<recessFloor+recessDepth)),stemSeat,pegWidth,pegDepth,stemClearance,socketWidth}};
+    return {body:pack(body.getMesh()),lid:pack(lid.getMesh()),stem:pack(stem.getMesh()),stats:{triangles:body.numTri()+lid.numTri()+stem.numTri(),volume:(body.volume()+lid.volume()+stem.volume())/1000,components:count,lidComponents:lidCount,stemComponents:stemCount,dimensions:bb.max.map((v,i)=>v-bb.min[i]),opening:Math.min(ob.max[0]-ob.min[0],ob.max[1]-ob.min[1]),cut,recessDiameter,recessDepth,recessFloor,recessOccludesFace:recessDepth>0&&contours.some(loop=>loop.some(([,y])=>(.5-y)*p.height*.51*p.faceScale/65*(p.textDesign?(p.textScale??100)/100:1)+p.height*.435+3+p.faceY<recessFloor+recessDepth)),stemSeat,pegWidth,pegDepth,stemClearance,socketWidth}};
   }finally{for(let i=allocated.length-1;i>=0;i--)allocated[i].delete();}
 }
 function pack(mesh){const p=new Float32Array(mesh.numVert*3);for(let i=0;i<mesh.numVert;i++)for(let j=0;j<3;j++)p[i*3+j]=mesh.vertProperties[i*mesh.numProp+j];return {positions:p,indices:new Uint32Array(mesh.triVerts)};}
