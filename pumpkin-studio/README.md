@@ -2,6 +2,8 @@
 
 A browser-based jack-o’-lantern designer hosted on GitHub Pages. Three.js renders the actual generated mesh, and Manifold performs hollowing and face subtraction in a Web Worker. No uploaded designs are sent to a server. The [project README](../README.md) explains every control, STL export, assembly, and deployment.
 
+The same designer is bundled in a Capacitor iOS app with native saving and sharing, local fonts, an app icon, a launch screen, and safe-area/touch controls. See [IOS.md](IOS.md) for the Xcode project, TestFlight/App Store steps, and device checks. iOS/iPadOS 17+ is the app's minimum target. The native app runs locally without loading GitHub Pages.
+
 ## Run
 
 Install Node.js 22 or later, then run `npm install`, `npm run build`, and `npm run dev`. Open http://127.0.0.1:5173. Use `npm test` for mesh connectivity, manifold reconstruction, closed-edge checks, body/lid interference, square peg insertion and socket floor checks, recess diameter/depth and floor checks, binary STL serialization, and raster contour tests.

@@ -4,6 +4,8 @@ Design and download a hollow, 3D-printable jack-o’-lantern in your browser. Th
 
 **Use the app:** [Pumpkin Studio](https://irishfan3124.github.io/Pumpkin_Studio/)
 
+**iPhone/iPad app:** The repository includes an offline iOS app project with native Files and share-sheet exports. See the [iOS and TestFlight guide](pumpkin-studio/IOS.md) for Xcode setup, device testing, and App Store submission. The native project targets iOS/iPadOS 17+. It must be built and signed before it can be distributed; there is no published App Store download yet.
+
 ## Design a pumpkin
 
 1. **Choose a face.** Search the built-in face library and select a design, or choose **Blank** for a plain pumpkin. For your own cutout, type a message of up to 24 characters or upload an SVG, PNG, JPG, or WebP file (up to 10 MB). Dark parts of an image become holes. Use bold, connected shapes; tiny detached islands may not print.
@@ -11,7 +13,7 @@ Design and download a hollow, 3D-printable jack-o’-lantern in your browser. Th
 3. **Place the cutout.** Use **Face size** and **Move face up / down** to set the cutout’s scale and position. The preview updates after each change.
 4. **Shape the pumpkin.** Adjust width, body height, and the number of natural ribs.
 5. **Tune the printable parts.** Set wall thickness, lid clearance, stem size, stem fit clearance, and LED recess dimensions. Lower lid or stem clearance makes that joint tighter. The default lid clearance is **0.4 mm**, based on a test print; check the fit on your own printer.
-6. **Inspect and export.** Drag to rotate the 3D preview and scroll to zoom. Switch between **Assembled**, **Lift the lid**, and **Body only**; **Light it up** previews an LED inside. Use **Download STL files** for a ZIP containing the body, lid, stem, and printing notes, or download each STL separately.
+6. **Inspect and export.** Drag to rotate the 3D preview and pinch or scroll to zoom. Switch between **Assembled**, **Lift the lid**, and **Body only**; **Light it up** previews an LED inside. Use **Download STL files** for a ZIP containing the body, lid, stem, and printing notes, or download each STL separately. In the iOS app, use **Save & share STL files**; exports are also saved in **Files → On My iPhone/iPad → Pumpkin Studio → Exports**. The app's bottom navigation jumps between Preview, Design, and Export. Each native export has its own folder; cancelling sharing keeps the file for later use.
 
 | Setting | Range | Default |
 | --- | --- | --- |

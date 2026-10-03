@@ -1,0 +1,12 @@
+{
+  "appId": "com.irishfan3124.pumpkinstudio",
+  "appName": "Pumpkin Studio",
+  "webDir": "dist",
+  "backgroundColor": "#fafaf7",
+  "ios": {
+    "contentInset": "never",
+    "preferredContentMode": "mobile",
+    "allowsLinkPreview": false,
+    "backgroundColor": "#fafaf7"
+  }
+}

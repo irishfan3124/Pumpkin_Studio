@@ -1,3 +1,14 @@
 node_modules/
 .sites-runtime/
 *.tar.gz
+ios/App/App/public/
+ios/App/App/capacitor.config.json
+ios/App/App/config.xml
+ios/App/build/
+build/
+ios/App/DerivedData/
+ios/App/CapApp-SPM/.build/
+**/xcuserdata/
+*.ipa
+*.xcarchive/
+.ios-checks/
