@@ -13,7 +13,7 @@ The native app saves STL and ZIP files into its Documents folder and opens the i
 - File sharing configuration, an Apple privacy manifest for filesystem timestamps, and in-app privacy details.
 - An optional GitHub Actions workflow that builds an unsigned simulator app and an unsigned iPhone IPA on macOS. It does not upload to Apple or require signing credentials. The IPA must be signed for a device before installation.
 
-Web builds, mesh checks, and file-export/worker-loading tests can run on Windows. **A successful asset sync is not an iOS compilation or device test.** Native compilation requires macOS and Xcode, either on a Mac or through the included GitHub workflow. Signing, real-device checks, and TestFlight/App Store submission remain to be completed. The Windows personal-testing route below uses AltStore for signing and installation.
+Web builds, mesh checks, and file-export/worker-loading tests can run on Windows. **A successful asset sync is not an iOS compilation or device test.** Native compilation requires macOS and Xcode, either on a Mac or through the included GitHub workflow. The first [GitHub iOS build](https://github.com/irishfan3124/Pumpkin_Studio/actions/runs/37133707860) passed on October 3, 2026, including the tests, simulator build, and physical-device archive. Its unsigned IPA was downloaded and checked for an ARM64 iPhone executable, bundled designer/WASM, and native export plugins. Signing, real-device checks, and TestFlight/App Store submission remain to be completed. The Windows personal-testing route below uses AltStore for signing and installation.
 
 ## Open and run on a Mac
 
@@ -60,7 +60,7 @@ The GitHub workflow supplies a device build so you do not need your own Mac for 
 5. Transfer the IPA to the phone's Files app, then open **AltStore Classic → My Apps → +**, choose the IPA, and let AltStore sign and install it for your Apple account. Launch Pumpkin Studio from the Home Screen.
 6. Free-account apps expire after **seven days**; refresh them through AltStore while AltServer is available on the same Wi-Fi network or connected over USB. Free accounts also have a three-active-app limit, including AltStore. See [AltStore's Getting Started guide](https://faq.altstore.io/altstore-classic/your-altstore) and [AltServer connection instructions](https://faq.altstore.io/altstore-classic/altserver).
 
-The downloaded IPA is deliberately unsigned and cannot be installed just by tapping it in Files. Its native compilation and installation have not been verified on this Windows host; the first successful GitHub run and phone installation are required checks. Once you choose paid Apple membership, use the TestFlight section instead of this personal testing route.
+The downloaded IPA is deliberately unsigned and cannot be installed just by tapping it in Files. Native compilation and the downloaded package passed the checks described above; signing and installation on an actual phone have not been tested. The downloaded test build is saved locally in `pumpkin-studio/build/ios-exports/PumpkinStudio-unsigned.ipa`, alongside a package-verification report and installation notes. This ignored build folder is not committed to Git. Once you choose paid Apple membership, use the TestFlight section instead of this personal testing route.
 
 ## TestFlight
 
@@ -104,7 +104,7 @@ Suggested review notes:
 
 After pushing the project, open **Actions → Build Pumpkin Studio iOS → Run workflow**. The macOS job runs the tests, synchronizes assets, and compiles Release apps for the simulator and a physical iPhone without Apple signing credentials. Its artifact contains a simulator `.app` inside a ZIP and **PumpkinStudio-unsigned.ipa**. The IPA needs device signing (for example, AltStore Classic for personal testing) and is not a TestFlight build. The simulator app can be installed into a booted simulator on a Mac. The workflow also runs for pull requests that touch the app.
 
-The workflow is supplied but has not been executed by preparing this project on Windows. If GitHub reports Swift package or SDK errors, inspect that run before attempting submission. A signed cloud build/upload workflow can be added later once the developer team, bundle identifier, and signing method are chosen.
+The first [workflow run](https://github.com/irishfan3124/Pumpkin_Studio/actions/runs/37133707860) completed successfully for app commit `1c8d883` on October 3, 2026. Its unsigned IPA was downloaded and inspected; real-device installation is still pending. If a future run reports Swift package or SDK errors, inspect that run before attempting submission. A signed cloud build/upload workflow can be added later once the developer team, bundle identifier, and signing method are chosen.
 
 ## Updating the app
 
