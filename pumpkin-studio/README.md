@@ -4,6 +4,8 @@ A browser-based jack-o’-lantern designer hosted on GitHub Pages. Three.js rend
 
 The same designer is bundled in a Capacitor iOS app with native saving and sharing, local fonts, an app icon, a launch screen, and safe-area/touch controls. See [IOS.md](IOS.md) for the Xcode project, TestFlight/App Store steps, and device checks. iOS/iPadOS 17+ is the app's minimum target. The native app runs locally without loading GitHub Pages.
 
+Batch Export is free in the web version and runs entirely on your device. Under the individual export controls, choose built-in faces and Small (125 × 100 mm), Medium (175 × 145 mm), or Large (240 × 200 mm) sizes. Select all faces to make the full library. Click Generate, keep the tab open, then Download collection. Extract the collection to find ZIPs named **Face Name - Size**, each containing body, lid, and stem STLs plus printing notes. All other controls use defaults, independently of the current design. Use Cancel to stop a batch; large collections may take several minutes. Uploaded artwork and text use the individual export controls. Batch Export does not require an account or license and is not included in the native iOS interface.
+
 ## Run
 
 Install Node.js 22 or later, then run `npm install`, `npm run build`, and `npm run dev`. Open http://127.0.0.1:5173. Use `npm test` for mesh connectivity, manifold reconstruction, closed-edge checks, body/lid interference, square peg insertion and socket floor checks, recess diameter/depth and floor checks, binary STL serialization, and raster contour tests.

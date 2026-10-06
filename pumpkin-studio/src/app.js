@@ -6,8 +6,10 @@ import {binarySTL} from './geometry.mjs';
 import {presets,presetInfo,traceMask,cutoutBounds,rotateUploadedFace,bridgeEnclosedRegions} from './faces.js';
 import {nativeIOS,saveExport} from './platform.js';
 import {createGeometryWorker} from './worker-loader.mjs';
+import {defaultSettings} from './batch-catalog.mjs';
+import {initBatchExport} from './batch.js';
 const $=id=>document.getElementById(id);
-const defaults={width:160,height:135,wall:3,ribs:10,clearance:.4,stemScale:125,stemClearance:.1,faceScale:65,faceY:0,imageRotation:0,textScale:100,recessDiameter:60,recessDepth:2};
+const defaults=defaultSettings;
 const state={...defaults};let contours=presets.classic,uploadImage=null,textDesign=false,result=null,revision=0,timer,view='assembled',lit=false;
 const status=$('status');const exportButtons=[$('export'),$('export-body'),$('export-lid'),$('export-stem'),$('mobile-export')];
 let exporting=false,readyRevision=-1;
@@ -139,4 +141,5 @@ $('help').onclick=()=>$('guide').showModal();$('close-guide').onclick=()=>$('gui
 $('privacy').onclick=()=>$('privacy-dialog').showModal();$('close-privacy').onclick=()=>$('privacy-dialog').close();
 if(document.modelContext?.registerTool){const schema={type:'object',properties:{width:{type:'number',minimum:100,maximum:240},height:{type:'number',minimum:100,maximum:210},wall:{type:'number',minimum:2,maximum:6},recessDiameter:{type:'number',minimum:20,maximum:100},recessDepth:{type:'number',minimum:0,maximum:8},face:{type:'string',enum:Object.keys(presets)}},additionalProperties:false};try{Promise.resolve(document.modelContext.registerTool({name:'configure_pumpkin',description:'Set pumpkin dimensions, wall thickness, and a built-in face, then regenerate the visible printable model.',inputSchema:schema,annotations:{readOnlyHint:false,untrustedContentHint:false},async execute(input){for(const k of Object.keys(input)){const s=schema.properties[k];if(!s||k==='face'?!s||!s.enum.includes(input[k]):typeof input[k]!=='number'||!Number.isFinite(input[k])||input[k]<s.minimum||input[k]>s.maximum)throw Error('Invalid pumpkin setting: '+k);}for(const k of ['width','height','wall','recessDiameter','recessDepth'])if(k in input)state[k]=input[k];if(input.face)document.querySelector(`[data-face="${input.face}"]`).click();labels();queue();const id=revision;await new Promise((resolve,reject)=>{const listener=({data})=>{if(data.id!==id)return;worker.removeEventListener('message',listener);data.error?reject(Error(data.error)):resolve();};worker.addEventListener('message',listener);});return {settings:{...state},triangles:result.stats.triangles};}})).catch(()=>{});}catch{}}
 labels();queue();
+if(!nativeIOS)initBatchExport({saveExport});
 

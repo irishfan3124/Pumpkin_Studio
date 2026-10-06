@@ -12,3 +12,13 @@ ios/App/CapApp-SPM/.build/
 *.ipa
 *.xcarchive/
 .ios-checks/
+# Private paid service, credentials, and local checkout configuration.
+premium-server/
+monetization/
+src/premium.js
+premium.config.example.json
+.dockerignore
+premium.config.local.json
+dist/premium.config.json
+.env
+.env.*

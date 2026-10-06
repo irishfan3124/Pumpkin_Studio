@@ -6,6 +6,10 @@ Design and download a hollow, 3D-printable jack-o’-lantern in your browser. Th
 
 **iPhone/iPad app:** The repository includes an offline iOS app project with native Files and share-sheet exports. See the [iOS and TestFlight guide](pumpkin-studio/IOS.md) for Xcode setup, device testing, and App Store submission. The native project targets iOS/iPadOS 17+. It must be built and signed before it can be distributed; there is no published App Store download yet.
 
+## Batch export
+
+In the web designer, scroll below the individual STL downloads to **Batch Export**. Choose built-in faces and Small (125 × 100 mm), Medium (175 × 145 mm), or Large (240 × 200 mm) bodies. Use **Select all faces** for the full library, then **Generate**. Keep the tab open while the models are generated; **Cancel** stops the batch. When ready, choose **Download collection** and extract its ZIP. Each **Face Name - Size.zip** contains the body, lid, stem, and printing notes. All other settings use defaults, independently of the current design. This feature is free and runs on your device; large batches may take several minutes. Custom uploads and text use individual export. The native iOS interface currently has individual exports only.
+
 ## Design a pumpkin
 
 1. **Choose a face.** Search the built-in face library and select a design, or choose **Blank** for a plain pumpkin. For your own cutout, type a message of up to 24 characters or upload an SVG, PNG, JPG, or WebP file (up to 10 MB). Dark parts of an image become holes. Use bold, connected shapes; tiny detached islands may not print.
