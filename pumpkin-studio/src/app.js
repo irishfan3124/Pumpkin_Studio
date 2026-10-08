@@ -8,11 +8,12 @@ import {nativeIOS,saveExport} from './platform.js';
 import {createGeometryWorker} from './worker-loader.mjs';
 import {defaultSettings} from './batch-catalog.mjs';
 import {initBatchExport} from './batch.js';
+import {startBatchJob} from './batch-job.mjs';
 const $=id=>document.getElementById(id);
 const defaults=defaultSettings;
 const state={...defaults};let contours=presets.classic,uploadImage=null,textDesign=false,result=null,revision=0,timer,view='assembled',lit=false;
 const status=$('status');const exportButtons=[$('export'),$('export-body'),$('export-lid'),$('export-stem'),$('mobile-export')];
-let exporting=false,readyRevision=-1;
+let exporting=false,nativeBatchBusy=false,readyRevision=-1;
 let worker;
 try{worker=await createGeometryWorker(new URL('./worker.js?v='+__BUILD_VERSION__,import.meta.url),new URL('./manifold.wasm',import.meta.url),nativeIOS);}
 catch(e){status.textContent=e.message;status.classList.add('error');}
@@ -47,8 +48,8 @@ function geometry(mesh){const g=new THREE.BufferGeometry();g.setAttribute('posit
 function renderModel(data){if(!group)return;for(const m of [...group.children]){m.geometry.dispose();group.remove(m);}bodyMesh=new THREE.Mesh(geometry(data.body),orange);lidMesh=new THREE.Mesh(geometry(data.lid),orange);stemMesh=new THREE.Mesh(geometry(data.stem),stemMaterial);for(const m of [bodyMesh,lidMesh,stemMesh]){m.castShadow=true;m.receiveShadow=true;group.add(m);}applyView();}
 function applyView(){if(!lidMesh)return;lidMesh.visible=stemMesh.visible=view!=='body';lidMesh.position.z=view==='exploded'?state.height*.20:0;stemMesh.position.z=view==='exploded'?state.height*.32:0;}
 function labels(){const limit=Math.min(100,Math.floor(state.width*.65));$('recessDiameter').max=limit;state.recessDiameter=Math.min(state.recessDiameter,limit);for(const key of Object.keys(defaults)){const el=$(key);el.value=state[key];$(key+'-value').textContent=key==='recessDepth'&&state[key]===0?'Off':state[key]+(key==='ribs'?'':key==='faceScale'||key==='stemScale'||key==='textScale'?'%':key==='imageRotation'?'°':key==='stemClearance'?' mm per side':' mm');el.style.setProperty('--progress',((el.value-el.min)/(el.max-el.min)*100)+'%');}}
-function updateExportButtons(){const s=result?.stats;const disabled=exporting||readyRevision!==revision||!s||s.components!==1||s.lidComponents!==1||s.stemComponents!==1;exportButtons.forEach(b=>b.disabled=disabled);}
-function queue(){revision++;updateExportButtons();if(!worker)return;status.classList.remove('error');status.textContent='Carving your pumpkin…';clearTimeout(timer);timer=setTimeout(()=>worker.postMessage({id:revision,params:{...state,textDesign},contours:uploadImage||textDesign?rotateUploadedFace(contours,state.width*.65/(state.height*.51),state.imageRotation):contours}),220);}
+function updateExportButtons(){const s=result?.stats;const disabled=exporting||nativeBatchBusy||readyRevision!==revision||!s||s.components!==1||s.lidComponents!==1||s.stemComponents!==1;exportButtons.forEach(b=>b.disabled=disabled);}
+function queue(){revision++;updateExportButtons();clearTimeout(timer);if(!worker||nativeBatchBusy)return;status.classList.remove('error');status.textContent='Carving your pumpkin…';timer=setTimeout(()=>worker.postMessage({id:revision,params:{...state,textDesign},contours:uploadImage||textDesign?rotateUploadedFace(contours,state.width*.65/(state.height*.51),state.imageRotation):contours}),220);}
 if(worker)worker.onmessage=({data})=>{if(data.id!==revision)return;if(data.error){status.textContent=data.error;status.classList.add('error');result=null;return;}result=data;readyRevision=data.id;renderModel(data);const s=data.stats;$('dimensions').textContent=s.dimensions.map(n=>Math.round(n)).join(' × ')+' mm';$('wall-stat').textContent=state.wall.toFixed(1)+' mm';status.textContent=`Hollow mesh · ${s.triangles.toLocaleString()} triangles · ${Math.floor(s.opening)} mm opening`;
  const detached=s.components!==1||s.lidComponents!==1||s.stemComponents!==1;updateExportButtons();$('mesh-note').textContent=detached?'This design creates detached pieces. Reduce the face size or use a connected stencil before exporting.':`Three closed meshes checked. ${s.recessDepth>0?`LED recess: Ø${s.recessDiameter} × ${s.recessDepth} mm; ${s.recessFloor.toFixed(1)} mm of solid base below it.`:'LED recess off.'} ${s.recessOccludesFace?'The raised base may cover low face details; reduce recess diameter or move the face up. ':''}Square stem peg: ${s.pegWidth.toFixed(1)} mm wide × ${s.pegDepth} mm long, with ${s.stemClearance} mm socket clearance per side. Test the fit before final assembly.`;
 };
@@ -141,5 +142,16 @@ $('help').onclick=()=>$('guide').showModal();$('close-guide').onclick=()=>$('gui
 $('privacy').onclick=()=>$('privacy-dialog').showModal();$('close-privacy').onclick=()=>$('privacy-dialog').close();
 if(document.modelContext?.registerTool){const schema={type:'object',properties:{width:{type:'number',minimum:100,maximum:240},height:{type:'number',minimum:100,maximum:210},wall:{type:'number',minimum:2,maximum:6},recessDiameter:{type:'number',minimum:20,maximum:100},recessDepth:{type:'number',minimum:0,maximum:8},face:{type:'string',enum:Object.keys(presets)}},additionalProperties:false};try{Promise.resolve(document.modelContext.registerTool({name:'configure_pumpkin',description:'Set pumpkin dimensions, wall thickness, and a built-in face, then regenerate the visible printable model.',inputSchema:schema,annotations:{readOnlyHint:false,untrustedContentHint:false},async execute(input){for(const k of Object.keys(input)){const s=schema.properties[k];if(!s||k==='face'?!s||!s.enum.includes(input[k]):typeof input[k]!=='number'||!Number.isFinite(input[k])||input[k]<s.minimum||input[k]>s.maximum)throw Error('Invalid pumpkin setting: '+k);}for(const k of ['width','height','wall','recessDiameter','recessDepth'])if(k in input)state[k]=input[k];if(input.face)document.querySelector(`[data-face="${input.face}"]`).click();labels();queue();const id=revision;await new Promise((resolve,reject)=>{const listener=({data})=>{if(data.id!==id)return;worker.removeEventListener('message',listener);data.error?reject(Error(data.error)):resolve();};worker.addEventListener('message',listener);});return {settings:{...state},triangles:result.stats.triangles};}})).catch(()=>{});}catch{}}
 labels();queue();
-if(!nativeIOS)initBatchExport({saveExport});
+initBatchExport({saveExport,nativeIOS,runNativeBatch(selection,options){
+ if(!worker)throw Error('The geometry engine is unavailable. Reopen the app to try again.');
+ if(exporting||nativeBatchBusy)throw Error('Wait for the current export to finish before starting a batch.');
+ nativeBatchBusy=true;clearTimeout(timer);$('design-controls').inert=true;updateExportButtons();
+ const job=startBatchJob(worker,selection,{...options,shared:true});
+ job.done=job.done.catch(error=>{if(error.name==='WorkerError'){worker.terminate();worker=null;result=null;status.textContent='Geometry engine interrupted. Reopen the app to restore the designer.';}throw error;}).finally(()=>{
+  nativeBatchBusy=false;$('design-controls').inert=false;updateExportButtons();
+  if(worker&&readyRevision!==revision)queue();
+ });
+ return job;
+}});
+$('jump-batch').onclick=()=>$('batch-export').scrollIntoView({behavior:'smooth',block:'start'});
 

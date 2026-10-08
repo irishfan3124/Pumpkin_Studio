@@ -9,7 +9,8 @@ The native app saves STL and ZIP files into its Documents folder and opens the i
 - An Xcode project and shared App scheme, supporting iPhone and iPad on **iOS/iPadOS 17 or newer**.
 - Offline designer assets, a pumpkin app icon, and branded launch screen.
 - Native save/share for the complete STL ZIP and individual body, lid, and stem files.
-- Touch controls, pinch zoom, safe-area spacing, and Preview/Design/Export navigation.
+- Offline Batch Export for all built-in faces and Small/Medium/Large sizes, with native saving and sharing of the collection ZIP.
+- Touch controls, pinch zoom, safe-area spacing, and Preview/Design/Batch/Export navigation.
 - File sharing configuration, an Apple privacy manifest for filesystem timestamps, and in-app privacy details.
 - An optional GitHub Actions workflow that builds an unsigned simulator app and an unsigned iPhone IPA on macOS. It does not upload to Apple or require signing credentials. The IPA must be signed for a device before installation.
 
@@ -66,7 +67,7 @@ The downloaded IPA is deliberately unsigned and cannot be installed just by tapp
 
 1. Enroll the publishing account in the [Apple Developer Program](https://developer.apple.com/programs/). TestFlight and App Store distribution require that account; GitHub Pages hosting does not replace it.
 2. Register the app's bundle identifier and create an iOS app record in [App Store Connect](https://appstoreconnect.apple.com/). Use the same bundle identifier as the Xcode target.
-3. Test the checklist below. In Xcode set your team, verify the app icon and display name, and choose a version and build number. The project starts at version **1.0.0**, build **1**. Increment the build number for each upload.
+3. Test the checklist below. In Xcode set your team, verify the app icon and display name, and choose a version and build number. The current project is version **1.1.0**, build **2**. Increment the build number for each upload.
 4. Select **Any iOS Device (arm64)** as the destination, then **Product → Archive**. From Organizer choose **Distribute App → TestFlight & App Store** (or **Custom → App Store Connect → Upload**), and complete Apple's validation/signing steps.
 5. After processing completes, open the app's **TestFlight** tab in App Store Connect. Complete beta information and any required export-compliance questions, and add testers. External testing can require beta app review. See [Apple's TestFlight overview](https://developer.apple.com/help/app-store-connect/test-a-beta-version/testflight-overview/).
 
@@ -96,6 +97,8 @@ Suggested review notes:
 - Enter text, change letter styles and font size, and inspect enclosed letters such as B and O.
 - Generate a 240 mm pumpkin, change wall and fit settings, and inspect the LED pocket with Body only/Lift the lid views. Check responsiveness and memory on the oldest supported phone.
 - Export the ZIP and each separate STL. Check Files visibility, Save to Files, AirDrop, share cancellation, and storage failure. Transfer files to a computer and open them in a slicer; verify millimeter units and three closed parts.
+- Open **Batch** in the bottom navigation. Select faces and sizes, generate, then tap **Save & share collection**. Confirm the ZIP is in Files even if the share sheet is dismissed, and each inner Face Name - Size ZIP contains three STL files and printing notes.
+- Cancel a batch, wait for the current pumpkin to finish, then generate another batch and edit the individual design. During native generation the design controls are temporarily disabled and the preview remains available. One bundled geometry worker is reused to reduce memory consumption. Check a larger batch on your target iPhone; start with smaller selections on older devices and keep the app in the foreground.
 - Change settings while an export is pending and verify the next export uses the new model. Detached-piece designs must keep export disabled.
 - Background and reopen the app during generation/export. Confirm recovery and report any loss of the in-memory current design.
 - Check VoiceOver labels, the privacy dialog, the printing guide, and the launch screen/icon.

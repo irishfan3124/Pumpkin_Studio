@@ -19,3 +19,22 @@ test('collection contains separately named complete kits using defaults at each 
 test('batch aborts on disconnected body, lid or stem instead of exporting a broken collection',async()=>{
   for(const key of ['components','lidComponents','stemComponents'])await assert.rejects(generateBatch({faces:['classic'],sizes:['small']},{build:()=>({stats:{components:1,lidComponents:1,stemComponents:1,[key]:2}}),yieldControl:async()=>{}}),/disconnected/);
 });
+
+test('native cancellation during the yield prevents generation of the next pumpkin',async()=>{
+  let cancelled=false,built=0;
+  await assert.rejects(generateBatch({faces:['classic'],sizes:['small','large']},{
+    build:()=>{built++;return {body:new Uint8Array([1]),lid:new Uint8Array([2]),stem:new Uint8Array([3]),stats:{components:1,lidComponents:1,stemComponents:1}};},
+    encode:x=>x,shouldCancel:()=>cancelled,
+    onProgress:p=>{if(p.completed===1)cancelled=true;},yieldControl:async()=>{}
+  }),{name:'AbortError'});
+  assert.equal(built,1);
+});
+
+test('cancelling before generation or during final assembly does not return a partial collection',async()=>{
+  await assert.rejects(generateBatch({faces:['classic'],sizes:['small']},{shouldCancel:()=>true,build:()=>assert.fail('cancelled batch must not build')}),{name:'AbortError'});
+  let cancelled=false,yields=0;
+  await assert.rejects(generateBatch({faces:['classic'],sizes:['small']},{
+    build:()=>({body:new Uint8Array([1]),lid:new Uint8Array([2]),stem:new Uint8Array([3]),stats:{components:1,lidComponents:1,stemComponents:1}}),
+    encode:x=>x,shouldCancel:()=>cancelled,yieldControl:async()=>{if(++yields===2)cancelled=true;}
+  }),{name:'AbortError'});
+});
